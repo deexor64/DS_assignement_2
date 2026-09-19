@@ -17,7 +17,7 @@ class HazardGatewayService(ServiceBase):
     @rpc(Unicode, Unicode, Unicode, _returns=HazardModel)
     def ReportHazard(ctx, title, description, region):
         try:
-            with grpc.insecure_channel("localhost:50051") as channel:
+            with grpc.insecure_channel("grpc-server:50051") as channel:
                 stub = hazard_pb2_grpc.HazardServiceStub(channel)
                 response = stub.ReportHazard(
                     hazard_pb2.ReportRequest(
@@ -36,7 +36,7 @@ class HazardGatewayService(ServiceBase):
     @rpc(Unicode, _returns=HazardModel)
     def GetHazardStatus(ctx, hazard_id):
         try:
-            with grpc.insecure_channel("localhost:50051") as channel:
+            with grpc.insecure_channel("grpc-server:50051") as channel:
                 stub = hazard_pb2_grpc.HazardServiceStub(channel)
                 response = stub.GetHazardStatus(
                     hazard_pb2.StatusRequest(hazard_id=hazard_id)
@@ -53,7 +53,7 @@ class HazardGatewayService(ServiceBase):
     @rpc(Unicode, _returns=Iterable(HazardModel))
     def ListHazards(ctx, region):
         try:
-            with grpc.insecure_channel("localhost:50051") as channel:
+            with grpc.insecure_channel("grpc-server:50051") as channel:
                 stub = hazard_pb2_grpc.HazardServiceStub(channel)
                 response = stub.ListHazards(hazard_pb2.ListRequest(region=region))
                 # Yield handles Spyne's requirement for Iterable returns (lists)
@@ -71,11 +71,21 @@ application = Application(
     in_protocol=Soap11(validator="lxml"),
     out_protocol=Soap11(),
 )
+
 wsgi_app = WsgiApplication(application)
+
+
+def docker_dns_middleware(environ, start_response):
+    # Force the WSDL to advertise the correct Docker network address
+    environ["SERVER_NAME"] = "gateway"
+    environ["HTTP_HOST"] = "gateway:8000"
+    return wsgi_app(environ, start_response)
+
 
 if __name__ == "__main__":
     from wsgiref.simple_server import make_server
 
-    print("SOAP Gateway running on http://localhost:8000 ...")
-    server = make_server("0.0.0.0", 8000, wsgi_app)
+    print("SOAP Gateway running on http://0.0.0.0:8000 ...")
+    # Replace wsgi_app with the new middleware
+    server = make_server("0.0.0.0", 8000, docker_dns_middleware)  # type: ignore
     server.serve_forever()

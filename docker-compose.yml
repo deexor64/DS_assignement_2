@@ -1,0 +1,47 @@
+version: '3.8'
+
+# 1. Define a named volume managed entirely by Docker
+volumes:
+  venv_data:
+
+x-base: &base
+  image: python:3.10-slim
+  volumes:
+    - .:/app
+    # 2. Mount the named volume over the .venv path to prevent host bleed
+    - venv_data:/app/.venv
+  working_dir: /app
+
+services:
+  setup:
+    <<: *base
+    command: sh -c "pip install pdm && pdm install && pdm run generate_proto"
+
+  grpc-server:
+    <<: *base
+    command: sh -c "pip install pdm && pdm run python src/server.py"
+    ports:
+      - "50051:50051"
+    depends_on:
+      setup:
+        condition: service_completed_successfully
+
+  gateway:
+    <<: *base
+    command: sh -c "pip install pdm && pdm run python src/gateway.py"
+    ports:
+      - "8000:8000"
+    depends_on:
+      setup:
+        condition: service_completed_successfully
+      grpc-server:
+        condition: service_started
+
+  client:
+    <<: *base
+    command: sh -c "pip install pdm && sleep 5 && pdm run python src/client.py"
+    depends_on:
+      setup:
+        condition: service_completed_successfully
+      gateway:
+        condition: service_started

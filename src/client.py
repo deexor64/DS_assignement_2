@@ -2,7 +2,7 @@ from zeep import Client
 
 
 def run():
-    client = Client("http://localhost:8000/?wsdl")
+    client = Client("http://gateway:8000/?wsdl")
 
     print("\n--- 1. Reporting Hazard (Valid) ---")
     res1 = client.service.ReportHazard("Flooding", "Water level rising", "Colombo")
