@@ -1,0 +1,32 @@
+syntax = "proto3";
+package hazard;
+
+service HazardService {
+  rpc ReportHazard(ReportRequest) returns (HazardResponse) {}
+  rpc GetHazardStatus(StatusRequest) returns (HazardResponse) {}
+  rpc ListHazards(ListRequest) returns (ListResponse) {}
+}
+
+message ReportRequest {
+  string title = 1;
+  string description = 2;
+  string region = 3;
+}
+
+message StatusRequest {
+  string hazard_id = 1;
+}
+
+message ListRequest {
+  string region = 1;
+}
+
+message HazardResponse {
+  string hazard_id = 1;
+  string status = 2;
+  string message = 3;
+}
+
+message ListResponse {
+  repeated HazardResponse hazards = 1;
+}
